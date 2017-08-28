@@ -43,9 +43,8 @@
 #endif
 #endif
 
-#define APPID ""
-#define FD_SDKKEY ""
-#define FT_SDKKEY ""
-#define FR_SDKKEY ""
 
-
+#define APPID 			""
+#define FD_SDKKEY		""
+#define FT_SDKKEY		""
+#define FR_SDKKEY		""

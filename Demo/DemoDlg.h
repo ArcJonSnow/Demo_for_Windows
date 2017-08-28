@@ -71,6 +71,7 @@ protected:
 	IplImage*				pFrame;
 	int						mFps;
 	bool					bPlayflag;
+	clock_t					mLastFRTime;				
 	
 	static DWORD WINAPI FRThread(LPVOID lpThreadParameter);
 	void FRThreadImp();

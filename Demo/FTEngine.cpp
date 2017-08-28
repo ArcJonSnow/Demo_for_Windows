@@ -26,7 +26,10 @@ int FTEngine::uninit()
 {
 	int ret = 0;
 	ret = AFT_FSDK_UninitialFaceEngine(hEngine);
-	free(pWorkMem);
+	if (pWorkMem != nullptr)
+	{
+		free(pWorkMem);
+	}
 	return ret;
 }
 int FTEngine::FaceTracking(LPASVLOFFSCREEN pImgData, LPAFT_FSDK_FACERES *pFaceRes)

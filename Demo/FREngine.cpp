@@ -22,7 +22,10 @@ int FREngine::init()
 int FREngine::uninit()
 {
 	int ret = AFR_FSDK_UninitialEngine(hEngine);
-	free(pWorkMem);
+	if (pWorkMem != nullptr)
+	{
+		free(pWorkMem);
+	}
 	return ret;
 }
 int FREngine::ExtractFRFeature(LPASVLOFFSCREEN pImgData, LPAFR_FSDK_FACEINPUT pFaceRes, LPAFR_FSDK_FACEMODEL pFaceModels)

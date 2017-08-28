@@ -24,7 +24,10 @@ int FDEngine::init()
 int FDEngine::uninit()
 {
 	int ret = AFD_FSDK_UninitialFaceEngine(hEngine);
-	free(pWorkMem);
+	if (pWorkMem != nullptr)
+	{
+		free(pWorkMem);
+	}
 	return ret;
 }
 int FDEngine::FaceDetection(LPASVLOFFSCREEN pImgData, LPAFD_FSDK_FACERES *pFaceRes)

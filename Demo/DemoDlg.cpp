@@ -52,9 +52,12 @@ BOOL CDemoDlg::OnInitDialog()
 	mInputPictureFaceNum = 0;
 	mInputVideoFaceNum = 0;
 	mFaceModelsNum = 0;
+	mLastFRTime = 0;
 	bCompare = false;
 	bPicture = false;
 	bPlayflag = false;
+	pFrame = nullptr;
+	m_pCapture = nullptr;
 	for (int i = 0; i < MAX_FACEMODELS_NUM; i++)
 	{
 		mFaceName[i].Format(_T("%dºÅ"), i);
@@ -131,13 +134,13 @@ void CDemoDlg::DoClose()
 	for (std::vector<FACE*>::iterator iter = mFaceModels.begin(); iter != mFaceModels.end();)
 	{
 		(*iter)->image.Destroy();
-		delete (*iter)->faceModel.pbFeature;
+		delete[] (*iter)->faceModel.pbFeature;
 		delete (*iter);
 		iter = mFaceModels.erase(iter);
 	}
 	if (mFTFaceResult.rcFace != nullptr)
 	{
-		delete mFTFaceResult.rcFace;
+		delete[] mFTFaceResult.rcFace;
 		mFTFaceResult.rcFace = nullptr;
 	}
 	CloseHandle(hMutex);
@@ -228,7 +231,7 @@ void CDemoDlg::OnPaint()
 					}
 				}
 				ReleaseDC(pDc);
-				delete face;
+				delete[] face;
 			}
 		}
 		for (int i = 0; i < mFaceModelsNum; i++)
@@ -480,6 +483,13 @@ void CDemoDlg::FRThreadImp()
 {
 	while (bPlayflag)
 	{
+		clock_t duration = clock() - mLastFRTime;
+		if (duration < 30)
+		{
+			Sleep(1);
+			continue;
+		}
+		mLastFRTime = clock();
 		WaitForSingleObject(hMutex, INFINITE);
 		if (!bPlayflag)
 		{
@@ -534,7 +544,7 @@ void CDemoDlg::FRThreadImp()
 		{
 			bCompare = true;
 		}
-		delete frameData;
+		delete[] frameData;
 	}
 }
 void CDemoDlg::DrawFaceRectOfInputVideo()
@@ -574,7 +584,7 @@ void CDemoDlg::DrawFaceRectOfInputVideo()
 		}
 	}
 	ReleaseDC(pDc);
-	delete face;
+	delete[] face;
 }
 void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -628,6 +638,8 @@ void CDemoDlg::ShowImage(IplImage* img, UINT ID)
 	CvvImage cimg;
 	cimg.CopyOf(img);
 	cimg.DrawToHDC(hDC, &rect);     
+	cimg.Destroy();
+	ReleaseDC(pDC);
 }
 
 void CDemoDlg::Play()
