@@ -3,6 +3,7 @@
 #include <string>
 #include <tchar.h>
 #include <gdiplus.h>
+#include <stdint.h>
 using namespace std;
 using namespace Gdiplus;
 
