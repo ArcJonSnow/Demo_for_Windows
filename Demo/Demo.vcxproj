@@ -22,6 +22,7 @@
     <ProjectGuid>{434964ED-0087-46AF-B154-B03860009DFB}</ProjectGuid>
     <RootNamespace>Demo</RootNamespace>
     <Keyword>MFCProj</Keyword>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -208,6 +209,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ConvertImage.h" />
     <ClInclude Include="CvvImage.h" />
     <ClInclude Include="Demo.h" />
     <ClInclude Include="DemoDlg.h" />
@@ -226,6 +228,7 @@
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ConvertImage.cpp" />
     <ClCompile Include="CvvImage.cpp" />
     <ClCompile Include="Demo.cpp" />
     <ClCompile Include="DemoDlg.cpp" />

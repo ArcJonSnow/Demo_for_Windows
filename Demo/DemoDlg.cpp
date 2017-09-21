@@ -6,6 +6,7 @@
 #include "Demo.h"
 #include "DemoDlg.h"
 #include "afxdialogex.h"
+#include "ConvertImage.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -264,7 +265,7 @@ HCURSOR CDemoDlg::OnQueryDragIcon()
 void CDemoDlg::OnBnClickedAddToFaceLib()
 {
 	// TODO: Add your control notification handler code here
-	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("bmp Files(*.bmp)|*.bmp||"), this);
+	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("Picture Files|*.*||"), this);
 	fileDlg.DoModal();
 	CString strFilePath;
 	strFilePath = fileDlg.GetPathName();
@@ -278,7 +279,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	char path[MAX_PATH];
 	int len = WideCharToMultiByte(CP_ACP, 0, strFilePath, -1, NULL, 0, NULL, NULL);
 	WideCharToMultiByte(CP_ACP, 0, strFilePath, -1, path, len, NULL, NULL);
-	bool ret = readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
+	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
 		MessageBox(_T("读取bmp文件失败！"));
@@ -341,7 +342,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 void CDemoDlg::OnBnClickedFRPicture()
 {
 	// TODO: Add your control notification handler code here
-	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("bmp Files(*.bmp)|*.bmp||"), this);
+	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("Picture Files|*.*||"), this);
 	fileDlg.DoModal();
 	CString strFilePath;
 	strFilePath = fileDlg.GetPathName();
@@ -355,7 +356,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 	char path[MAX_PATH];
 	int len = WideCharToMultiByte(CP_ACP, 0, strFilePath, -1, NULL, 0, NULL, NULL);
 	WideCharToMultiByte(CP_ACP, 0, strFilePath, -1, path, len, NULL, NULL);
-	bool ret = readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
+	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
 		MessageBox(_T("读取bmp文件失败！"));

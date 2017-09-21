@@ -66,6 +66,9 @@
     <ClInclude Include="include\asvloffscreen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ConvertImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Demo.cpp">
@@ -90,6 +93,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FTEngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConvertImage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
