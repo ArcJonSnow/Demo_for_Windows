@@ -282,7 +282,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
-		MessageBox(_T("读取bmp文件失败！"));
+		MessageBox(_T("读取图片文件失败！"));
 		return;
 	}
 	offInput.pi32Pitch[0] = offInput.i32Width * 3;
@@ -359,7 +359,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
-		MessageBox(_T("读取bmp文件失败！"));
+		MessageBox(_T("读取图片文件失败！"));
 		return;
 	}
 	offInput.pi32Pitch[0] = offInput.i32Width * 3;

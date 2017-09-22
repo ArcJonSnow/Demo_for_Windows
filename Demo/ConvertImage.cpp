@@ -224,11 +224,29 @@ bool CConvertImage::readBmpFromBuffer(const string& sOutBmp, uint8_t **imageData
 	*pWidth = head.biWidth;
 	*pHeight = head.biHeight;
 	int biBitCount = head.biBitCount;
-	int lineByte = ((*pWidth) * biBitCount / 8 + 3) / 4 * 4;
-	*imageData = (uint8_t *)malloc(lineByte * (*pHeight));
-	for (int i = 0; i < *pHeight; i++)
+	if (24 == biBitCount)
 	{
-		memcpy(*imageData + i * (*pWidth) * 3, pBuffer + (*pHeight - 1 - i) * lineByte + 54, (*pWidth) * 3);
+		int lineByte = ((*pWidth) * biBitCount / 8 + 3) / 4 * 4;
+		*imageData = (uint8_t *)malloc(lineByte * (*pHeight));
+		for (int i = 0; i < *pHeight; i++)
+		{
+			memcpy(*imageData + i * (*pWidth) * 3, pBuffer + (*pHeight - 1 - i) * lineByte + 54, (*pWidth) * 3);
+		}
+	}
+	else if (32 == biBitCount)
+	{
+		*imageData = (uint8_t *)malloc((*pWidth) * (*pHeight) * 3);
+		for (int i = 0; i < *pHeight; i++)
+		{
+			for (int j = 0; j < *pWidth; j++)
+			{
+				memcpy((*imageData) + i * (*pWidth) * 3 + j * 3, pBuffer + (((*pHeight) - 1) - i) * (*pWidth) * 4 + j * 4 + 54, 3);
+			}
+		}
+	}
+	else
+	{
+		return false;
 	}
 	return true;
 }
