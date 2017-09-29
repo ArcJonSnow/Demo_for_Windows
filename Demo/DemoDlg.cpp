@@ -50,6 +50,7 @@ END_MESSAGE_MAP()
 BOOL CDemoDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+	// 初始化变量
 	mInputPictureFaceNum = 0;
 	mInputVideoFaceNum = 0;
 	mFaceModelsNum = 0;
@@ -68,6 +69,9 @@ BOOL CDemoDlg::OnInitDialog()
 		mCompareResult[i].nFaceId = -1;
 		mCompareResult[i].fCompareResult = 0.0f;
 	}
+	mFTFaceResult.rcFace = new MRECT[MAX_INPUT_FACES_NUM];
+	hMutex = CreateMutex(NULL, FALSE, _T("frame"));
+	// 初始化引擎
 	int ret = 0;
 	mFDEngine = new FDEngine();
 	ret = mFDEngine->init();
@@ -91,6 +95,7 @@ BOOL CDemoDlg::OnInitDialog()
 		exit(0);
 		return false;
 	}
+	// 绑定PIC控件
 	pInputImageWnd = GetDlgItem(PIC_INPUTIMAGE);
 	pFaceImageWnd[0] = GetDlgItem(PIC_FACE1);
 	pFaceImageWnd[1] = GetDlgItem(PIC_FACE2);
@@ -105,8 +110,8 @@ BOOL CDemoDlg::OnInitDialog()
 	pFaceImageWnd[10] = GetDlgItem(PIC_FACE11);
 	pFaceImageWnd[11] = GetDlgItem(PIC_FACE12);
 	UpdateData(FALSE);
-	mFTFaceResult.rcFace = new MRECT[MAX_INPUT_FACES_NUM];
-	hMutex = CreateMutex(NULL, FALSE, _T("frame"));
+	
+	// 设置定时器
 	SetTimer(0, 1000, NULL);
 
 	// Set the icon for this dialog.  The framework does this automatically
@@ -119,6 +124,7 @@ BOOL CDemoDlg::OnInitDialog()
 }
 void CDemoDlg::DoClose()
 {
+	// 停止运行并释放内存和引擎
 	Stop();
 	if (mFDEngine != nullptr)
 	{
@@ -178,12 +184,12 @@ void CDemoDlg::OnPaint()
 	else
 	{
 		CDialogEx::OnPaint();
-		if (bPicture)
+		if (bPicture)	//判断当前需要显示的是否为图片,如果是图片则进行图片渲染
 		{
-			if (!mInputImage.IsNull())
+			if (!mInputImage.IsNull())	//判断渲染图片是否为NULL
 			{
-				CRect rc;
-				CRect rcScale;
+				CRect rc;	//定义图片显示控件PIC_INPUTIMAGE的矩形框
+				CRect rcScale;	//定义图片缩放后对应的矩形框
 				pInputImageWnd->GetClientRect(rc);
 				int height = mInputImage.GetHeight();
 				int width = mInputImage.GetWidth();
@@ -191,6 +197,7 @@ void CDemoDlg::OnPaint()
 				pDc = pInputImageWnd->GetDC();
 				SetStretchBltMode(pDc->m_hDC, STRETCH_HALFTONE);
 				CRect *face = new CRect[mInputPictureFaceNum];
+				//计算图片缩放比例
 				float xScale, yScale, ScaleIndex;
 				if (width <= rc.Width() && height <= rc.Height())
 				{
@@ -210,7 +217,7 @@ void CDemoDlg::OnPaint()
 					face[i].top = (int)mInputPictureFaceRect[i].top * ScaleIndex;
 					face[i].bottom = (int)mInputPictureFaceRect[i].bottom * ScaleIndex;
 				}
-				mInputImage.StretchBlt(pDc->m_hDC, rcScale, SRCCOPY);
+				mInputImage.StretchBlt(pDc->m_hDC, rcScale, SRCCOPY);	//将图片按缩放比例显示在PIC_INPUTIMAGE控件
 				
 				CPen pen(PS_SOLID, 1, RGB(255, 0, 0));
 				CClientDC dc(pInputImageWnd);
@@ -218,8 +225,8 @@ void CDemoDlg::OnPaint()
 				dc.SelectStockObject(NULL_BRUSH);
 				for (int i = 0; i < mInputPictureFaceNum; i++)
 				{
-					dc.Rectangle(face[i].left, face[i].top, face[i].right, face[i].bottom);
-					if (bCompare)
+					dc.Rectangle(face[i].left, face[i].top, face[i].right, face[i].bottom);		//绘制人脸框
+					if (bCompare)	//判断是否为人脸识别对比，如果是则将名字等信息显示在人脸框
 					{
 						if (mCompareResult[i].nFaceId != -1)
 						{
@@ -235,7 +242,7 @@ void CDemoDlg::OnPaint()
 				delete[] face;
 			}
 		}
-		for (int i = 0; i < mFaceModelsNum; i++)
+		for (int i = 0; i < mFaceModelsNum; i++)	//绘制右侧人脸库中的人脸图片
 		{
 			CDC* pFaceDC;
 			pFaceDC = pFaceImageWnd[i]->GetDC();
@@ -265,6 +272,7 @@ HCURSOR CDemoDlg::OnQueryDragIcon()
 void CDemoDlg::OnBnClickedAddToFaceLib()
 {
 	// TODO: Add your control notification handler code here
+	// 创建对话框读取图片路径
 	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("Picture Files|*.*||"), this);
 	fileDlg.DoModal();
 	CString strFilePath;
@@ -273,6 +281,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	{
 		return;
 	}
+	// 读取图片数据信息存入ASVLOFFSCREEN结构体
 	ASVLOFFSCREEN offInput = { 0 };
 	offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
 	offInput.ppu8Plane[0] = nullptr;
@@ -286,6 +295,8 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 		return;
 	}
 	offInput.pi32Pitch[0] = offInput.i32Width * 3;
+	
+	//进行FD获取人脸框位置
 	LPAFD_FSDK_FACERES faceRes;
 	int mRet = mFDEngine->FaceDetection(&offInput, &faceRes);
 	if (faceRes->nFace <= 0 || mRet != MOK)
@@ -304,6 +315,8 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	bCompare = false;
 	Invalidate(TRUE);
 	UpdateWindow();
+	
+	// 对检测到的人脸进行FR人脸特征提取，将提取的人脸特征信息存入人脸库
 	for (int i = 0; i < faceRes->nFace; i++)
 	{
 		if (mFaceModelsNum > MAX_FACEMODELS_NUM - 1)
@@ -325,7 +338,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 		}
 		face->faceModel.lFeatureSize = LocalFaceModels.lFeatureSize;
 		face->faceModel.pbFeature = new MByte[face->faceModel.lFeatureSize];
-		memcpy(face->faceModel.pbFeature, LocalFaceModels.pbFeature, face->faceModel.lFeatureSize);
+		memcpy(face->faceModel.pbFeature, LocalFaceModels.pbFeature, face->faceModel.lFeatureSize);//LocalFaceModels.pbFeature指向人脸特征信息，将其数据拷贝到人脸库，如果不拷贝出来，用相同的引擎进行特征提取时会覆盖上一次得到的人脸特征信息
 		face->name = &mFaceName[mFaceModelsNum];
 		mFaceModels.push_back(face);
 		mFaceModelsNum++;
@@ -342,6 +355,7 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 void CDemoDlg::OnBnClickedFRPicture()
 {
 	// TODO: Add your control notification handler code here
+	// 创建对话框读取图片路径
 	CFileDialog fileDlg(TRUE, _T("bmp"), NULL, 0, _T("Picture Files|*.*||"), this);
 	fileDlg.DoModal();
 	CString strFilePath;
@@ -350,6 +364,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 	{
 		return;
 	}
+	// 读取图片数据信息存入ASVLOFFSCREEN结构体
 	ASVLOFFSCREEN offInput = { 0 };
 	offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
 	offInput.ppu8Plane[0] = nullptr;
@@ -363,6 +378,8 @@ void CDemoDlg::OnBnClickedFRPicture()
 		return;
 	}
 	offInput.pi32Pitch[0] = offInput.i32Width * 3;
+	
+	//进行FD获取人脸框位置
 	LPAFD_FSDK_FACERES faceRes;
 	int mRet = mFDEngine->FaceDetection(&offInput, &faceRes);
 	if (faceRes->nFace <= 0 || mRet != MOK)
@@ -380,6 +397,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 	bCompare = false;
 	Invalidate(TRUE);
 	UpdateWindow();
+	//进行人脸比对，将结果存储在mCompareResult
 	for (int i = 0; i < faceRes->nFace; i++)
 	{
 		AFR_FSDK_FACEINPUT faceResult;
@@ -433,6 +451,7 @@ void CDemoDlg::OnBnClickedFRVideo()
 	}
 	else
 	{
+		// 创建对话框读取视频路径
 		CFileDialog  fileDlg(TRUE, _T("*.jpg"), NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY,
 			_T("*.mp4|*.mp4|*.avi|*.avi||"), NULL);
 		fileDlg.m_ofn.lpstrTitle = _T("选取视频文件");
@@ -454,6 +473,7 @@ void CDemoDlg::OnBnClickedFRVideo()
 				return;
 			}
 		}
+		// 初始化FT引擎
 		int ret = 0;
 		mFTEngine = new FTEngine();
 		ret = mFTEngine->init();
@@ -465,6 +485,7 @@ void CDemoDlg::OnBnClickedFRVideo()
 			DoClose();
 			exit(0);
 		}
+		// 获取视频帧数据
 		WaitForSingleObject(hMutex, INFINITE);
 		pFrame = cvQueryFrame(m_pCapture);
 		mVideoWidth = pFrame->width;
@@ -472,6 +493,7 @@ void CDemoDlg::OnBnClickedFRVideo()
 		ReleaseMutex(hMutex);
 		bPicture = false;
 		Play();
+		//创建FR线程
 		mFRThread = CreateThread(NULL, 0, FRThread, this, 0, NULL);
 	}
 }
@@ -484,7 +506,7 @@ void CDemoDlg::FRThreadImp()
 {
 	while (bPlayflag)
 	{
-		clock_t duration = clock() - mLastFRTime;
+		clock_t duration = clock() - mLastFRTime;// 设置时间判定，防止长时间占用内存
 		if (duration < 30)
 		{
 			Sleep(1);
@@ -497,6 +519,7 @@ void CDemoDlg::FRThreadImp()
 			ReleaseMutex(hMutex);
 			break;
 		}
+		// 读取视频帧数据信息存入ASVLOFFSCREEN结构体
 		ASVLOFFSCREEN offInput = { 0 };
 		offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
 		offInput.i32Width = pFrame->width;
@@ -506,6 +529,7 @@ void CDemoDlg::FRThreadImp()
 		offInput.ppu8Plane[0] = frameData;
 		offInput.pi32Pitch[0] = offInput.i32Width * 3;
 		ReleaseMutex(hMutex);
+		// 根据FT获得的人脸框信息，进行人脸特征提取和匹配
 		for (int i = 0; i < mFTFaceResult.nFace; i++)
 		{
 			AFR_FSDK_FACEINPUT faceResult;
@@ -550,6 +574,7 @@ void CDemoDlg::FRThreadImp()
 }
 void CDemoDlg::DrawFaceRectOfInputVideo()
 {
+	//计算缩放比例并进行人脸框的缩放
 	CRect rc;
 	pInputImageWnd->GetClientRect(rc);
 	CDC* pDc;
@@ -572,7 +597,7 @@ void CDemoDlg::DrawFaceRectOfInputVideo()
 	for (int i = 0; i < mInputVideoFaceNum; i++)
 	{
 		dc.Rectangle(face[i].left, face[i].top, face[i].right, face[i].bottom);
-		if (bCompare)
+		if (bCompare)	// 判断是否进行了人脸匹配，如果进行人脸匹配，在人脸框中显示姓名等信息
 		{
 			if (mCompareResult[i].nFaceId != -1)
 			{
@@ -597,6 +622,7 @@ void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 	if (1 == nIDEvent)
 	{
+		// 获取视频帧数据
 		WaitForSingleObject(hMutex, INFINITE);
 		pFrame = cvQueryFrame(m_pCapture); 
 		if (!pFrame)
@@ -606,12 +632,14 @@ void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
 		}
 		else
 		{
+			// 读取视频帧数据信息存入ASVLOFFSCREEN结构体
 			ASVLOFFSCREEN offInput = { 0 };
 			offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
 			offInput.i32Width = pFrame->width;
 			offInput.i32Height = pFrame->height;
 			offInput.ppu8Plane[0] = (uint8_t *)pFrame->imageData;
 			offInput.pi32Pitch[0] = offInput.i32Width * 3;
+			// 进行FT，获取人脸框信息
 			LPAFT_FSDK_FACERES faceRes;
 			mFTEngine->FaceTracking(&offInput, &faceRes);
 			ShowImage(pFrame, PIC_INPUTIMAGE);
@@ -630,6 +658,7 @@ void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
 		CDialogEx::OnTimer(nIDEvent);
 	}
 }
+//在PIC控件中显示图片/视频信息
 void CDemoDlg::ShowImage(IplImage* img, UINT ID)
 { 
 	CDC* pDC = GetDlgItem(ID)->GetDC();
@@ -642,7 +671,7 @@ void CDemoDlg::ShowImage(IplImage* img, UINT ID)
 	cimg.Destroy();
 	ReleaseDC(pDC);
 }
-
+//进入视频播放模式
 void CDemoDlg::Play()
 {
 	bPlayflag = true;
@@ -655,6 +684,7 @@ void CDemoDlg::Play()
 		SetTimer(1, 1000 / mFps, NULL); 
 	}
 }
+// 停止视频播放
 void CDemoDlg::Stop()
 {
 	bPlayflag = false;
@@ -673,7 +703,7 @@ void CDemoDlg::Stop()
 	WaitForSingleObject(mFRThread, INFINITE);
 	KillTimer(SetTimer(1, mFps, NULL));
 }
-
+// 回车键刷新数据
 BOOL CDemoDlg::PreTranslateMessage(MSG* pMsg)
 {
 	// TODO: Add your specialized code here and/or call the base class
