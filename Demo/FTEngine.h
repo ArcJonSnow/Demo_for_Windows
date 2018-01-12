@@ -3,7 +3,7 @@
 #include "merror.h"
 #include "arcsoft_fsdk_face_tracking.h"
 
-#define WORKBUF_SIZE_FT (40*1024*1024)
+#define WORKBUF_SIZE_FT (30*1024*1024)
 class FTEngine
 {
 private:

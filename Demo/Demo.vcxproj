@@ -87,6 +87,7 @@
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <IncludePath>$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -106,8 +107,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;libarcsoft_fsdk_age_estimation.lib;libarcsoft_fsdk_gender_estimation.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -132,8 +133,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;libarcsoft_fsdk_age_estimation.lib;libarcsoft_fsdk_gender_estimation.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -161,8 +162,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;libarcsoft_fsdk_age_estimation.lib;libarcsoft_fsdk_gender_estimation.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -191,8 +192,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core2413.lib;opencv_highgui2413.lib;libarcsoft_fsdk_face_detection.lib;libarcsoft_fsdk_face_recognition.lib;libarcsoft_fsdk_face_tracking.lib;libarcsoft_fsdk_age_estimation.lib;libarcsoft_fsdk_gender_estimation.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Demo\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -208,6 +209,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AgeEngine.h" />
     <ClInclude Include="ConvertImage.h" />
     <ClInclude Include="CvvImage.h" />
     <ClInclude Include="Demo.h" />
@@ -215,18 +217,23 @@
     <ClInclude Include="FDEngine.h" />
     <ClInclude Include="FREngine.h" />
     <ClInclude Include="FTEngine.h" />
+    <ClInclude Include="GenderEngine.h" />
     <ClInclude Include="include\amcomdef.h" />
     <ClInclude Include="include\ammem.h" />
+    <ClInclude Include="include\arcsoft_fsdk_age_estimation.h" />
     <ClInclude Include="include\arcsoft_fsdk_face_detection.h" />
     <ClInclude Include="include\arcsoft_fsdk_face_recognition.h" />
     <ClInclude Include="include\arcsoft_fsdk_face_tracking.h" />
+    <ClInclude Include="include\arcsoft_fsdk_gender_estimation.h" />
     <ClInclude Include="include\asvloffscreen.h" />
+    <ClInclude Include="merror.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AgeEngine.cpp" />
     <ClCompile Include="ConvertImage.cpp" />
     <ClCompile Include="CvvImage.cpp" />
     <ClCompile Include="Demo.cpp" />
@@ -234,6 +241,7 @@
     <ClCompile Include="FDEngine.cpp" />
     <ClCompile Include="FREngine.cpp" />
     <ClCompile Include="FTEngine.cpp" />
+    <ClCompile Include="GenderEngine.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

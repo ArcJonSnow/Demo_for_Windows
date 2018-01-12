@@ -14,6 +14,15 @@
 
 CDemoDlg::CDemoDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDemoDlg::IDD, pParent)
+	, mInputPictureFaceNum(0)
+	, mInputVideoFaceNum(0)
+	, mFaceModelsNum(0)
+	, mLastFRTime(0)
+	, bCompare(false)
+	, bPicture(false)
+	, bPlayflag(false)
+	, pFrame(nullptr)
+	, m_pCapture(nullptr)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -33,6 +42,11 @@ void CDemoDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_NAME10, mFaceName[9]);
 	DDX_Text(pDX, IDC_NAME11, mFaceName[10]);
 	DDX_Text(pDX, IDC_NAME12, mFaceName[11]);
+	DDX_Control(pDX, BUTTON_ADDTOFACELIB, mAddToFaceLib);
+	DDX_Control(pDX, BUTTON_FRCAMERA, mFRCamera);
+	DDX_Control(pDX, BUTTON_FRPICTURE, mFRPicture);
+	DDX_Control(pDX, BUTTON_FRVIDEO, mFRVideo);
+	DDX_Control(pDX, BUTTON_STOP, mStopButton);
 }
 
 BEGIN_MESSAGE_MAP(CDemoDlg, CDialogEx)
@@ -43,6 +57,8 @@ BEGIN_MESSAGE_MAP(CDemoDlg, CDialogEx)
 	ON_BN_CLICKED(BUTTON_ADDTOFACELIB, &CDemoDlg::OnBnClickedAddToFaceLib)
 	ON_BN_CLICKED(BUTTON_FRPICTURE, &CDemoDlg::OnBnClickedFRPicture)
 	ON_BN_CLICKED(BUTTON_FRVIDEO, &CDemoDlg::OnBnClickedFRVideo)
+	ON_BN_CLICKED(BUTTON_FRCAMERA, &CDemoDlg::OnBnClickedFrcamera)
+	ON_BN_CLICKED(BUTTON_STOP, &CDemoDlg::OnBnClickedStop)
 END_MESSAGE_MAP()
 
 // CDemoDlg message handlers
@@ -51,15 +67,6 @@ BOOL CDemoDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 	// 初始化变量
-	mInputPictureFaceNum = 0;
-	mInputVideoFaceNum = 0;
-	mFaceModelsNum = 0;
-	mLastFRTime = 0;
-	bCompare = false;
-	bPicture = false;
-	bPlayflag = false;
-	pFrame = nullptr;
-	m_pCapture = nullptr;
 	for (int i = 0; i < MAX_FACEMODELS_NUM; i++)
 	{
 		mFaceName[i].Format(_T("%d号"), i);
@@ -68,6 +75,8 @@ BOOL CDemoDlg::OnInitDialog()
 	{
 		mCompareResult[i].nFaceId = -1;
 		mCompareResult[i].fCompareResult = 0.0f;
+		mCompareResult[i].nAge = 0;
+		mCompareResult[i].nGender = -1;
 	}
 	mFTFaceResult.rcFace = new MRECT[MAX_INPUT_FACES_NUM];
 	hMutex = CreateMutex(NULL, FALSE, _T("frame"));
@@ -95,6 +104,28 @@ BOOL CDemoDlg::OnInitDialog()
 		exit(0);
 		return false;
 	}
+	mAgeEngine = new AgeEngine();
+	ret = mAgeEngine->init();
+	if (ret != MOK)
+	{
+		CString str;
+		str.Format(_T("初始化Age引擎失败,错误码: %d, 程序将关闭!"), ret);
+		MessageBox(str);
+		DoClose();
+		exit(0);
+		return false;
+	}
+	mGenderEngine = new GenderEngine();
+	ret = mGenderEngine->init();
+	if (ret != MOK)
+	{
+		CString str;
+		str.Format(_T("初始化Gender引擎失败,错误码: %d, 程序将关闭!"), ret);
+		MessageBox(str);
+		DoClose();
+		exit(0);
+		return false;
+	}
 	// 绑定PIC控件
 	pInputImageWnd = GetDlgItem(PIC_INPUTIMAGE);
 	pFaceImageWnd[0] = GetDlgItem(PIC_FACE1);
@@ -110,10 +141,9 @@ BOOL CDemoDlg::OnInitDialog()
 	pFaceImageWnd[10] = GetDlgItem(PIC_FACE11);
 	pFaceImageWnd[11] = GetDlgItem(PIC_FACE12);
 	UpdateData(FALSE);
-	
 	// 设置定时器
 	SetTimer(0, 1000, NULL);
-
+	mStopButton.EnableWindow(0);
 	// Set the icon for this dialog.  The framework does this automatically
 	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
@@ -137,6 +167,18 @@ void CDemoDlg::DoClose()
 		mFREngine->uninit();
 		delete mFREngine;
 		mFREngine = nullptr;
+	}
+	if (mAgeEngine != nullptr)
+	{
+		mAgeEngine->uninit();
+		delete mAgeEngine;
+		mAgeEngine = nullptr;
+	}
+	if (mGenderEngine != nullptr)
+	{
+		mGenderEngine->uninit();
+		delete mGenderEngine;
+		mGenderEngine = nullptr;
 	}
 	for (std::vector<FACE*>::iterator iter = mFaceModels.begin(); iter != mFaceModels.end();)
 	{
@@ -184,6 +226,7 @@ void CDemoDlg::OnPaint()
 	else
 	{
 		CDialogEx::OnPaint();
+		
 		if (bPicture)	//判断当前需要显示的是否为图片,如果是图片则进行图片渲染
 		{
 			if (!mInputImage.IsNull())	//判断渲染图片是否为NULL
@@ -197,8 +240,8 @@ void CDemoDlg::OnPaint()
 				pDc = pInputImageWnd->GetDC();
 				SetStretchBltMode(pDc->m_hDC, STRETCH_HALFTONE);
 				CRect *face = new CRect[mInputPictureFaceNum];
-				//计算图片缩放比例
-				float xScale, yScale, ScaleIndex;
+
+				float xScale, yScale, ScaleIndex;	//计算图片缩放比例
 				if (width <= rc.Width() && height <= rc.Height())
 				{
 					ScaleIndex = 1;
@@ -226,16 +269,25 @@ void CDemoDlg::OnPaint()
 				for (int i = 0; i < mInputPictureFaceNum; i++)
 				{
 					dc.Rectangle(face[i].left, face[i].top, face[i].right, face[i].bottom);		//绘制人脸框
-					if (bCompare)	//判断是否为人脸识别对比，如果是则将名字等信息显示在人脸框
+					if (bCompare)		//判断是否为人脸识别对比，如果是则将名字等信息显示在人脸框
 					{
+						dc.SetBkMode(TRANSPARENT);
+						dc.SetTextColor(RGB(255, 255, 255));
+						
+						CString str;
 						if (mCompareResult[i].nFaceId != -1)
 						{
-							dc.SetBkMode(TRANSPARENT);
-							dc.SetTextColor(RGB(255, 255, 255));
-							CString str;
-							str.Format(*mFaceModels[mCompareResult[i].nFaceId]->name + _T("\n%.3f"), mCompareResult[i].fCompareResult);
-							dc.DrawText(str, face[i], DT_TOP | DT_CENTER);
+							str.AppendFormat(*mFaceModels[mCompareResult[i].nFaceId]->name + _T(", %.3f\n"), mCompareResult[i].fCompareResult);
 						}
+						if (mCompareResult[i].nAge != 0)
+						{
+							str.AppendFormat(_T("%d岁 "), mCompareResult[i].nAge);
+						}
+						if (mCompareResult[i].nGender != -1)
+						{
+							str.Append(mCompareResult[i].nGender ? _T("女") : _T("男"));
+						}
+						dc.DrawTextEx(str, face[i], DT_TOP | DT_CENTER | DT_NOCLIP, NULL);
 					}
 				}
 				ReleaseDC(pDc);
@@ -291,11 +343,11 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
-		MessageBox(_T("读取图片文件失败！"));
+		MessageBox(_T("读取文件失败！"));
 		return;
 	}
-	offInput.pi32Pitch[0] = offInput.i32Width * 3;
-	
+	offInput.pi32Pitch[0] = offInput.i32Width * 3;//因为在读取图片的时候将补齐字节的部分去掉了，因此每一行的字节数是宽X3。如果直接使用bmp图片读取的是4字节对齐数据，需要将pi32Pitch设置成补齐后每一行的字节数
+
 	//进行FD获取人脸框位置
 	LPAFD_FSDK_FACERES faceRes;
 	int mRet = mFDEngine->FaceDetection(&offInput, &faceRes);
@@ -315,7 +367,6 @@ void CDemoDlg::OnBnClickedAddToFaceLib()
 	bCompare = false;
 	Invalidate(TRUE);
 	UpdateWindow();
-	
 	// 对检测到的人脸进行FR人脸特征提取，将提取的人脸特征信息存入人脸库
 	for (int i = 0; i < faceRes->nFace; i++)
 	{
@@ -374,11 +425,10 @@ void CDemoDlg::OnBnClickedFRPicture()
 	bool ret = CConvertImage::readBmp(path, (uint8_t**)&offInput.ppu8Plane[0], &offInput.i32Width, &offInput.i32Height);
 	if (!offInput.ppu8Plane[0] || !ret)
 	{
-		MessageBox(_T("读取图片文件失败！"));
+		MessageBox(_T("读取文件失败！"));
 		return;
 	}
-	offInput.pi32Pitch[0] = offInput.i32Width * 3;
-	
+	offInput.pi32Pitch[0] = offInput.i32Width * 3;//因为在读取图片的时候将补齐字节的部分去掉了，因此每一行的字节数是宽X3。如果直接使用bmp图片读取的是4字节对齐数据，需要将pi32Pitch设置成补齐后每一行的字节数
 	//进行FD获取人脸框位置
 	LPAFD_FSDK_FACERES faceRes;
 	int mRet = mFDEngine->FaceDetection(&offInput, &faceRes);
@@ -397,6 +447,47 @@ void CDemoDlg::OnBnClickedFRPicture()
 	bCompare = false;
 	Invalidate(TRUE);
 	UpdateWindow();
+
+	// 进行AgeEstimation
+	ASAE_FSDK_AGEFACEINPUT ageInputFaceRes;
+	ASAE_FSDK_AGERESULT ageRes;
+	ageInputFaceRes.lFaceNumber = faceRes->nFace;
+	ageInputFaceRes.pFaceRectArray = new MRECT[ageInputFaceRes.lFaceNumber];
+	ageInputFaceRes.pFaceOrientArray = new int[ageInputFaceRes.lFaceNumber];
+	for (int i = 0; i < ageInputFaceRes.lFaceNumber; i++)
+	{
+		ageInputFaceRes.pFaceRectArray[i].left = faceRes->rcFace[i].left;
+		ageInputFaceRes.pFaceRectArray[i].top = faceRes->rcFace[i].top;
+		ageInputFaceRes.pFaceRectArray[i].right = faceRes->rcFace[i].right;
+		ageInputFaceRes.pFaceRectArray[i].bottom = faceRes->rcFace[i].bottom;
+		ageInputFaceRes.pFaceOrientArray[i] = faceRes->lfaceOrient[i];
+	}
+	mAgeEngine->AgeEstimationStaticImage(&offInput, &ageInputFaceRes, &ageRes);
+	delete[] ageInputFaceRes.pFaceRectArray;
+	delete[] ageInputFaceRes.pFaceOrientArray;
+	// 进行GenderEstimation
+	ASGE_FSDK_GENDERFACEINPUT genderInputFaceRes;
+	ASGE_FSDK_GENDERRESULT genderRes;
+	genderInputFaceRes.lFaceNumber = faceRes->nFace;
+	genderInputFaceRes.pFaceRectArray = new MRECT[genderInputFaceRes.lFaceNumber];
+	genderInputFaceRes.pFaceOrientArray = new int[genderInputFaceRes.lFaceNumber];
+	for (int i = 0; i < genderInputFaceRes.lFaceNumber; i++)
+	{
+		genderInputFaceRes.pFaceRectArray[i].left = faceRes->rcFace[i].left;
+		genderInputFaceRes.pFaceRectArray[i].top = faceRes->rcFace[i].top;
+		genderInputFaceRes.pFaceRectArray[i].right = faceRes->rcFace[i].right;
+		genderInputFaceRes.pFaceRectArray[i].bottom = faceRes->rcFace[i].bottom;
+		genderInputFaceRes.pFaceOrientArray[i] = faceRes->lfaceOrient[i];
+	}
+	mGenderEngine->GenderEstimationStaticImage(&offInput, &genderInputFaceRes, &genderRes);
+	delete[] genderInputFaceRes.pFaceRectArray;
+	delete[] genderInputFaceRes.pFaceOrientArray;
+	// 将年龄和性别的结果存入mCompareResult，用来进行显示
+	for (int i = 0; i < faceRes->nFace; i++)
+	{
+		mCompareResult[i].nAge = ageRes.pAgeResultArray[i];
+		mCompareResult[i].nGender = genderRes.pGenderResultArray[i];
+	}
 	//进行人脸比对，将结果存储在mCompareResult
 	for (int i = 0; i < faceRes->nFace; i++)
 	{
@@ -417,7 +508,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 			if (fSimilScore >= maxScore)
 			{
 				maxScore = fSimilScore;
-				if (maxScore > 0.5)
+				if (maxScore > 0.0)
 				{
 					mCompareResult[i].nFaceId = j;
 					mCompareResult[i].fCompareResult = maxScore;
@@ -445,14 +536,10 @@ void CDemoDlg::OnBnClickedFRPicture()
 void CDemoDlg::OnBnClickedFRVideo()
 {
 	// TODO: Add your control notification handler code here
-	if (bPlayflag)
-	{
-		Stop();
-	}
-	else
+	if (!bPlayflag)
 	{
 		// 创建对话框读取视频路径
-		CFileDialog  fileDlg(TRUE, _T("*.jpg"), NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY,
+		CFileDialog  fileDlg(TRUE, NULL, NULL, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY,
 			_T("*.mp4|*.mp4|*.avi|*.avi||"), NULL);
 		fileDlg.m_ofn.lpstrTitle = _T("选取视频文件");
 		fileDlg.DoModal();
@@ -475,15 +562,46 @@ void CDemoDlg::OnBnClickedFRVideo()
 		}
 		// 初始化FT引擎
 		int ret = 0;
-		mFTEngine = new FTEngine();
-		ret = mFTEngine->init();
-		if (ret != MOK)
+		if (mFTEngine == nullptr)
 		{
-			CString str;
-			str.Format(_T("初始化FT引擎失败,错误码: %d, 程序将关闭!"), ret);
-			MessageBox(str);
-			DoClose();
-			exit(0);
+			mFTEngine = new FTEngine();
+			ret = mFTEngine->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化FT引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
+		}
+		// 初始化AgeForVideo引擎
+		if (mAgeEngineForVideo == nullptr)
+		{
+			mAgeEngineForVideo = new AgeEngine();
+			ret = mAgeEngineForVideo->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化AgeForVideo引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
+		}
+		// 初始化GenderForVideo引擎
+		if (mGenderEngineForVideo == nullptr)
+		{
+			mGenderEngineForVideo = new GenderEngine();
+			ret = mGenderEngineForVideo->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化AgeForVideo引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
 		}
 		// 获取视频帧数据
 		WaitForSingleObject(hMutex, INFINITE);
@@ -495,6 +613,94 @@ void CDemoDlg::OnBnClickedFRVideo()
 		Play();
 		//创建FR线程
 		mFRThread = CreateThread(NULL, 0, FRThread, this, 0, NULL);
+	}
+}
+void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	if (0 == nIDEvent)
+	{
+		UpdateData();
+		CDialogEx::OnTimer(nIDEvent);
+	}
+	if (1 == nIDEvent)
+	{
+		WaitForSingleObject(hMutex, INFINITE);
+		// 获取视频帧数据
+		pFrame = cvQueryFrame(m_pCapture);
+		if (!pFrame)
+		{
+			Stop();
+			return;
+		}
+		else
+		{
+			// 读取视频帧数据信息存入ASVLOFFSCREEN结构体
+			ASVLOFFSCREEN offInput = { 0 };
+			offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
+			offInput.i32Width = pFrame->width;
+			offInput.i32Height = pFrame->height;
+			offInput.ppu8Plane[0] = (uint8_t *)pFrame->imageData;
+			offInput.pi32Pitch[0] = offInput.i32Width * 3;
+
+			// 进行FT，获取人脸框信息
+			LPAFT_FSDK_FACERES faceRes;
+			mFTEngine->FaceTracking(&offInput, &faceRes);
+			ShowImage(pFrame, PIC_INPUTIMAGE);
+			mInputVideoFaceNum = faceRes->nFace;
+			mFTFaceResult.nFace = faceRes->nFace;
+			for (int i = 0; i < faceRes->nFace; i++)
+			{
+				mInputVideoFaceRect[i].SetRect(faceRes->rcFace[i].left, faceRes->rcFace[i].top, faceRes->rcFace[i].right, faceRes->rcFace[i].bottom);
+				mFTFaceResult.lfaceOrient = faceRes->lfaceOrient;
+				memcpy(&mFTFaceResult.rcFace[i], &faceRes->rcFace[i], sizeof(faceRes->rcFace[i]));
+			}
+			ReleaseMutex(hMutex);
+
+			ASAE_FSDK_AGEFACEINPUT ageInputFaceRes;
+			ASAE_FSDK_AGERESULT ageRes;
+			ageInputFaceRes.lFaceNumber = faceRes->nFace;
+			ageInputFaceRes.pFaceRectArray = new MRECT[ageInputFaceRes.lFaceNumber];
+			ageInputFaceRes.pFaceOrientArray = new int[ageInputFaceRes.lFaceNumber];
+			for (int i = 0; i < ageInputFaceRes.lFaceNumber; i++)
+			{
+				ageInputFaceRes.pFaceRectArray[i].left = faceRes->rcFace[i].left;
+				ageInputFaceRes.pFaceRectArray[i].top = faceRes->rcFace[i].top;
+				ageInputFaceRes.pFaceRectArray[i].right = faceRes->rcFace[i].right;
+				ageInputFaceRes.pFaceRectArray[i].bottom = faceRes->rcFace[i].bottom;
+				ageInputFaceRes.pFaceOrientArray[i] = faceRes->lfaceOrient;
+			}
+			mAgeEngineForVideo->AgeEstimationPreview(&offInput, &ageInputFaceRes, &ageRes);
+			delete[] ageInputFaceRes.pFaceRectArray;
+			delete[] ageInputFaceRes.pFaceOrientArray;
+			// 进行GenderEstimation
+			ASGE_FSDK_GENDERFACEINPUT genderInputFaceRes;
+			ASGE_FSDK_GENDERRESULT genderRes;
+			genderInputFaceRes.lFaceNumber = faceRes->nFace;
+			genderInputFaceRes.pFaceRectArray = new MRECT[genderInputFaceRes.lFaceNumber];
+			genderInputFaceRes.pFaceOrientArray = new int[genderInputFaceRes.lFaceNumber];
+			for (int i = 0; i < genderInputFaceRes.lFaceNumber; i++)
+			{
+				genderInputFaceRes.pFaceRectArray[i].left = faceRes->rcFace[i].left;
+				genderInputFaceRes.pFaceRectArray[i].top = faceRes->rcFace[i].top;
+				genderInputFaceRes.pFaceRectArray[i].right = faceRes->rcFace[i].right;
+				genderInputFaceRes.pFaceRectArray[i].bottom = faceRes->rcFace[i].bottom;
+				genderInputFaceRes.pFaceOrientArray[i] = faceRes->lfaceOrient;
+			}
+			mGenderEngineForVideo->GenderEstimationPreview(&offInput, &genderInputFaceRes, &genderRes);
+			delete[] genderInputFaceRes.pFaceRectArray;
+			delete[] genderInputFaceRes.pFaceOrientArray;
+			// 将年龄和性别的结果存入mCompareResult，用来进行显示
+			for (int i = 0; i < faceRes->nFace; i++)
+			{
+				mCompareResult[i].nAge = ageRes.pAgeResultArray[i];
+				mCompareResult[i].nGender = genderRes.pGenderResultArray[i];
+			}
+
+			bPicture = false;
+			DrawFaceRectOfInputVideo();
+		}
+		CDialogEx::OnTimer(nIDEvent);
 	}
 }
 DWORD WINAPI CDemoDlg::FRThread(LPVOID lpThreadParameter)
@@ -528,15 +734,20 @@ void CDemoDlg::FRThreadImp()
 		memcpy(frameData, (uint8_t *)pFrame->imageData, offInput.i32Width * offInput.i32Height * 3);
 		offInput.ppu8Plane[0] = frameData;
 		offInput.pi32Pitch[0] = offInput.i32Width * 3;
+		// 拷贝FT获得的人脸框信息
+		int FTFaceNum = mFTFaceResult.nFace;
+		LPAFR_FSDK_FACEINPUT faceResult = new AFR_FSDK_FACEINPUT[FTFaceNum];
+		for (int i = 0; i < FTFaceNum; i++)
+		{
+			faceResult[i].rcFace = mFTFaceResult.rcFace[i];
+			faceResult[i].lOrient = mFTFaceResult.lfaceOrient;
+		}
 		ReleaseMutex(hMutex);
 		// 根据FT获得的人脸框信息，进行人脸特征提取和匹配
 		for (int i = 0; i < mFTFaceResult.nFace; i++)
 		{
-			AFR_FSDK_FACEINPUT faceResult;
 			AFR_FSDK_FACEMODEL faceModel;
-			faceResult.rcFace = mFTFaceResult.rcFace[i];
-			faceResult.lOrient = mFTFaceResult.lfaceOrient;
-			int mRet = mFREngine->ExtractFRFeature(&offInput, &faceResult, &faceModel);
+			int mRet = mFREngine->ExtractFRFeature(&offInput, &faceResult[i], &faceModel);
 			if (mRet == MOK)
 			{
 				float maxScore = 0;
@@ -547,7 +758,7 @@ void CDemoDlg::FRThreadImp()
 					if (fSimilScore >= maxScore)
 					{
 						maxScore = fSimilScore;
-						if (maxScore > 0.5)
+						if (maxScore > 0.55)
 						{
 							mCompareResult[i].nFaceId = j;
 							mCompareResult[i].fCompareResult = maxScore;
@@ -570,8 +781,10 @@ void CDemoDlg::FRThreadImp()
 			bCompare = true;
 		}
 		delete[] frameData;
+		delete[] faceResult;
 	}
 }
+// 进行人脸框绘制的函数
 void CDemoDlg::DrawFaceRectOfInputVideo()
 {
 	//计算缩放比例并进行人脸框的缩放
@@ -590,6 +803,7 @@ void CDemoDlg::DrawFaceRectOfInputVideo()
 		face[i].top = (int)mInputVideoFaceRect[i].top * yScale;
 		face[i].bottom = (int)mInputVideoFaceRect[i].bottom * yScale;
 	}
+
 	CPen pen(PS_SOLID, 1, RGB(255, 0, 0));
 	CClientDC dc(pInputImageWnd);
 	dc.SelectObject(pen);
@@ -597,66 +811,29 @@ void CDemoDlg::DrawFaceRectOfInputVideo()
 	for (int i = 0; i < mInputVideoFaceNum; i++)
 	{
 		dc.Rectangle(face[i].left, face[i].top, face[i].right, face[i].bottom);
-		if (bCompare)	// 判断是否进行了人脸匹配，如果进行人脸匹配，在人脸框中显示姓名等信息
+		if (bCompare)// 判断是否进行了人脸匹配，如果进行人脸匹配，在人脸框中显示姓名等信息
 		{
+			dc.SetBkMode(TRANSPARENT);
+			dc.SetTextColor(RGB(255, 255, 255));
+
+			CString str;
 			if (mCompareResult[i].nFaceId != -1)
 			{
-				dc.SetBkMode(TRANSPARENT);
-				dc.SetTextColor(RGB(255, 255, 255));
-				CString str;
-				str.Format(*mFaceModels[mCompareResult[i].nFaceId]->name + _T("\n%.3f"), mCompareResult[i].fCompareResult);
-				dc.DrawText(str, face[i], DT_TOP | DT_CENTER);
+				str.AppendFormat(*mFaceModels[mCompareResult[i].nFaceId]->name + _T(", %.3f\n"), mCompareResult[i].fCompareResult);
 			}
+			if (mCompareResult[i].nAge != 0)
+			{
+				str.AppendFormat(_T("%d岁 "), mCompareResult[i].nAge);
+			}
+			if (mCompareResult[i].nGender != -1)
+			{
+				str.Append(mCompareResult[i].nGender ? _T("女") : _T("男"));
+			}
+			dc.DrawText(str, face[i], DT_TOP | DT_CENTER | DT_NOCLIP);
 		}
 	}
 	ReleaseDC(pDc);
 	delete[] face;
-}
-void CDemoDlg::OnTimer(UINT_PTR nIDEvent)
-{
-	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	if (0 == nIDEvent)
-	{
-		UpdateData();
-		CDialogEx::OnTimer(nIDEvent);
-	}
-	if (1 == nIDEvent)
-	{
-		// 获取视频帧数据
-		WaitForSingleObject(hMutex, INFINITE);
-		pFrame = cvQueryFrame(m_pCapture); 
-		if (!pFrame)
-		{
-			Stop();
-			return;
-		}
-		else
-		{
-			// 读取视频帧数据信息存入ASVLOFFSCREEN结构体
-			ASVLOFFSCREEN offInput = { 0 };
-			offInput.u32PixelArrayFormat = ASVL_PAF_RGB24_B8G8R8;
-			offInput.i32Width = pFrame->width;
-			offInput.i32Height = pFrame->height;
-			offInput.ppu8Plane[0] = (uint8_t *)pFrame->imageData;
-			offInput.pi32Pitch[0] = offInput.i32Width * 3;
-			// 进行FT，获取人脸框信息
-			LPAFT_FSDK_FACERES faceRes;
-			mFTEngine->FaceTracking(&offInput, &faceRes);
-			ShowImage(pFrame, PIC_INPUTIMAGE);
-			mInputVideoFaceNum = faceRes->nFace;
-			mFTFaceResult.nFace = faceRes->nFace;
-			for (int i = 0; i < faceRes->nFace; i++)
-			{
-				mInputVideoFaceRect[i].SetRect(faceRes->rcFace[i].left, faceRes->rcFace[i].top, faceRes->rcFace[i].right, faceRes->rcFace[i].bottom);
-				mFTFaceResult.lfaceOrient = faceRes->lfaceOrient;
-				memcpy(&mFTFaceResult.rcFace[i], &faceRes->rcFace[i], sizeof(faceRes->rcFace[i]));
-			}
-			ReleaseMutex(hMutex);
-			bPicture = false;
-			DrawFaceRectOfInputVideo();
-		}
-		CDialogEx::OnTimer(nIDEvent);
-	}
 }
 //在PIC控件中显示图片/视频信息
 void CDemoDlg::ShowImage(IplImage* img, UINT ID)
@@ -675,13 +852,19 @@ void CDemoDlg::ShowImage(IplImage* img, UINT ID)
 void CDemoDlg::Play()
 {
 	bPlayflag = true;
-	GetDlgItem(BUTTON_ADDTOFACELIB)->EnableWindow(0);
-	GetDlgItem(BUTTON_FRPICTURE)->EnableWindow(0);
-	GetDlgItem(BUTTON_FRVIDEO)->SetWindowTextW(_T("停止"));
+	mAddToFaceLib.EnableWindow(0);
+	mFRPicture.EnableWindow(0);
+	mFRCamera.EnableWindow(0);
+	mFRVideo.EnableWindow(0);
+	mStopButton.EnableWindow(1);
 	mFps = (int)cvGetCaptureProperty(m_pCapture, CV_CAP_PROP_FPS);
 	if (mFps != 0)
 	{
 		SetTimer(1, 1000 / mFps, NULL); 
+	}
+	else
+	{
+		SetTimer(1, 0, NULL);
 	}
 }
 // 停止视频播放
@@ -689,9 +872,11 @@ void CDemoDlg::Stop()
 {
 	bPlayflag = false;
 	mInputVideoFaceNum = 0;
-	GetDlgItem(BUTTON_ADDTOFACELIB)->EnableWindow(1);
-	GetDlgItem(BUTTON_FRPICTURE)->EnableWindow(1);
-	GetDlgItem(BUTTON_FRVIDEO)->SetWindowTextW(_T("识别视频"));
+	mAddToFaceLib.EnableWindow(1);
+	mFRPicture.EnableWindow(1);
+	mFRCamera.EnableWindow(1);
+	mFRVideo.EnableWindow(1);
+	mStopButton.EnableWindow(0);
 	cvReleaseCapture(&m_pCapture);
 	if (mFTEngine != nullptr)
 	{
@@ -699,9 +884,21 @@ void CDemoDlg::Stop()
 		delete mFTEngine;
 		mFTEngine = nullptr;
 	}
+	if (mAgeEngineForVideo != nullptr)
+	{
+		mAgeEngineForVideo->uninit();
+		delete mAgeEngineForVideo;
+		mAgeEngineForVideo = nullptr;
+	}
+	if (mGenderEngineForVideo != nullptr)
+	{
+		mGenderEngineForVideo->uninit();
+		delete mGenderEngineForVideo;
+		mGenderEngineForVideo = nullptr;
+	}
 	ReleaseMutex(hMutex);
 	WaitForSingleObject(mFRThread, INFINITE);
-	KillTimer(SetTimer(1, mFps, NULL));
+	KillTimer(1);
 }
 // 回车键刷新数据
 BOOL CDemoDlg::PreTranslateMessage(MSG* pMsg)
@@ -718,8 +915,78 @@ BOOL CDemoDlg::PreTranslateMessage(MSG* pMsg)
 	}
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
+void CDemoDlg::OnBnClickedFrcamera()
+{
+	// TODO: Add your control notification handler code here
+	if (!bPlayflag)
+	{
+		// 打开摄像头
+		if (!(m_pCapture = cvCreateCameraCapture(0)))
+		{
+			MessageBox(_T("打开摄像头失败!"));
+			return;
+		}
+		// 初始化FT引擎
+		int ret = 0;
+		if (mFTEngine == nullptr)
+		{
+			mFTEngine = new FTEngine();
+			ret = mFTEngine->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化FT引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
+		}
+		// 初始化AgeForVideo引擎
+		if (mAgeEngineForVideo == nullptr)
+		{
+			mAgeEngineForVideo = new AgeEngine();
+			ret = mAgeEngineForVideo->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化AgeForVideo引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
+		}
+		// 初始化GenderForVideo引擎
+		if (mGenderEngineForVideo == nullptr)
+		{
+			mGenderEngineForVideo = new GenderEngine();
+			ret = mGenderEngineForVideo->init();
+			if (ret != MOK)
+			{
+				CString str;
+				str.Format(_T("初始化AgeForVideo引擎失败,错误码: %d, 程序将关闭!"), ret);
+				MessageBox(str);
+				DoClose();
+				exit(0);
+			}
+		}
+		// 获取视频帧数据
+		WaitForSingleObject(hMutex, INFINITE);
+		pFrame = cvQueryFrame(m_pCapture);
+		mVideoWidth = pFrame->width;
+		mVideoHeight = pFrame->height;
+		ReleaseMutex(hMutex);
+		bPicture = false;
+		Play();
+		//创建FR线程
+		mFRThread = CreateThread(NULL, 0, FRThread, this, 0, NULL);
+	}
+}
 
-
-
-
-
+void CDemoDlg::OnBnClickedStop()
+{
+	// TODO: Add your control notification handler code here
+	if (bPlayflag)
+	{
+		Stop();
+	}
+}

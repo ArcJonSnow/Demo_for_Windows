@@ -3,7 +3,7 @@
 #include "merror.h"
 #include "arcsoft_fsdk_face_detection.h"
 
-#define WORKBUF_SIZE_FD (40*1024*1024)
+#define WORKBUF_SIZE_FD (20*1024*1024)
 class FDEngine
 {
 private:

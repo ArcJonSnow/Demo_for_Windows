@@ -48,9 +48,13 @@
 #define FD_SDKKEY		""
 #define FT_SDKKEY		""
 #define FR_SDKKEY		""
+#define AGE_SDKKEY		""
+#define GENDER_SDKKEY	""
 #elif defined _M_X64
 #define APPID ""
 #define FD_SDKKEY		""
 #define FT_SDKKEY		""
 #define FR_SDKKEY		""
+#define AGE_SDKKEY		""
+#define GENDER_SDKKEY	""
 #endif

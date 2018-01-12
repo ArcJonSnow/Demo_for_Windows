@@ -16,6 +16,9 @@
 #include "FDEngine.h"
 #include "FTEngine.h"
 #include "FREngine.h"
+#include "AgeEngine.h"
+#include "GenderEngine.h"
+#include "afxwin.h"
 
 #define MAX_FACEMODELS_NUM 12
 #define MAX_INPUT_FACES_NUM 12
@@ -27,6 +30,8 @@ typedef struct {
 } FACE;
 typedef struct{
 	int nFaceId;
+	int nAge;
+	int nGender;
 	float fCompareResult;
 } CompareResult;
 // CDemoDlg dialog
@@ -49,6 +54,10 @@ protected:
 	FDEngine*				mFDEngine;
 	FTEngine*				mFTEngine;
 	FREngine*				mFREngine;
+	AgeEngine*				mAgeEngine;
+	AgeEngine*				mAgeEngineForVideo;
+	GenderEngine*			mGenderEngine;
+	GenderEngine*			mGenderEngineForVideo;
 	CWnd*					pInputImageWnd;
 	CWnd*					pFaceImageWnd[MAX_FACEMODELS_NUM];
 	CRect					mInputPictureFaceRect[MAX_INPUT_FACES_NUM];
@@ -93,4 +102,13 @@ public:
 	afx_msg void OnBnClickedFRPicture();
 	afx_msg void OnBnClickedFRVideo();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg void OnBnClickedFrcamera();
+private:
+	CButton mAddToFaceLib;
+	CButton mFRCamera;
+	CButton mFRPicture;
+	CButton mFRVideo;
+	CButton mStopButton;
+public:
+	afx_msg void OnBnClickedStop();
 };

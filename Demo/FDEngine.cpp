@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "FDEngine.h"
-
 FDEngine::FDEngine()
 {
 	nScale = 16;

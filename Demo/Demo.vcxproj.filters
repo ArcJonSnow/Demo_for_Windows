@@ -66,7 +66,22 @@
     <ClInclude Include="include\asvloffscreen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AgeEngine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GenderEngine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\arcsoft_fsdk_age_estimation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\arcsoft_fsdk_gender_estimation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="ConvertImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="merror.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -93,6 +108,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FTEngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AgeEngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GenderEngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConvertImage.cpp">
