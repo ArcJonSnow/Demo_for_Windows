@@ -6,8 +6,8 @@
 2.	在VS2013中打开Demo.sln文件，运行工程，修改工程配置选择32位或64位。
 3.	前往官网申请APPID和SDKKEY, 修改 Demo\stdafx.h 下面的对应的  
 	#define APPID ""  
-	#define FD_SDKKEY ""  
 	#define FT_SDKKEY ""  
+	#define FD_SDKKEY ""  
 	#define FR_SDKKEY ""  
 	#define AGE_SDKKEY ""  
 	#define GENDER_SDKKEY ""  
