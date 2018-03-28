@@ -508,7 +508,7 @@ void CDemoDlg::OnBnClickedFRPicture()
 			if (fSimilScore >= maxScore)
 			{
 				maxScore = fSimilScore;
-				if (maxScore > 0.0)
+				if (maxScore > 0.55)
 				{
 					mCompareResult[i].nFaceId = j;
 					mCompareResult[i].fCompareResult = maxScore;
